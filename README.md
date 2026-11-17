@@ -11,11 +11,20 @@
 
 ## 🎯 Business Problem
 
-Nett sales Kimia Farma tertahan di sekitar Rp80 miliar per tahun (growth YoY: −0,5%, +0,7%, −0,6%). Kalau penjualan tidak tumbuh, kenaikan profit harus datang dari tempat lain. Project ini mencari tahu:
+Nett sales Kimia Farma tertahan di sekitar Rp80 miliar per tahun (growth YoY: −0,5%, +0,7%, −0,6%). Kalau penjualan tidak tumbuh, kenaikan profit harus datang dari tempat lain. Lima pertanyaan dibagi ke tiga halaman dashboard:
 
-- Kenapa sebagian cabang untung lebih besar dari cabang lain?
-- Apakah rating cabang mencerminkan kepuasan pembeli?
-- Dari mana profit datang, dan berapa yang dilepas untuk diskon?
+**Halaman 1: Gambaran Umum**
+1. Berapa penjualan dan profit 2020-2023, dan apakah naik?
+
+**Halaman 2: Cabang & Pelanggan**
+
+2. Kenapa sebagian cabang untung lebih besar?
+3. Apakah rating cabang mencerminkan kepuasan pembeli?
+
+**Halaman 3: Profit & Kebocoran**
+
+4. Dari mana profit datang?
+5. Berapa profit yang hilang karena diskon dan stok?
 
 Dikerjakan sebagai final task Rakamin VIX Big Data Analytics, lalu saya kembangkan dengan pipeline SQL Server dan dashboard Power BI tiga halaman.
 
@@ -25,7 +34,10 @@ Dikerjakan sebagai final task Rakamin VIX Big Data Analytics, lalu saya kembangk
 - **Volume:** 672.458 transaksi · 1.035.000 baris inventory · 1.725 cabang · 150 produk
 - **Cakupan:** 2020-2023 · 31 provinsi
 - **File:** ada di folder `Raw Data/`. Dua file terbesar (`kf_final_transaction` dan `kf_inventory`) disimpan dalam format `.zip`.
-- **Integritas relasi:** semua `branch_id` dan `product_id` di tabel transaksi dan inventory punya pasangan di tabel master
+
+![Relasi tabel](Images/Relasi%20Tabel.png)
+
+Tabel transaksi dan inventory terhubung ke tabel cabang lewat `branch_id` dan ke tabel produk lewat `product_id`. Semua `branch_id` dan `product_id` di tabel transaksi dan inventory punya pasangan di tabel master.
 
 Rumus yang dipakai:
 
@@ -40,11 +52,13 @@ Rumus yang dipakai:
 
 Medallion architecture di SQL Server (T-SQL):
 
+![Medallion pipeline](Images/Medallion%20Pipeline.png)
+
 - **Bronze**: load 4 CSV apa adanya dengan `BULK INSERT`.
 - **Silver**: `TRIM` semua teks, ubah tanggal `M/D/YYYY` ke `DATE` (style 101, supaya 9/7/2023 terbaca 7 September), dan hapus duplikat dengan `ROW_NUMBER()`.
-- **Gold**: tabel `kf_analysis` berisi nett sales, nett profit, dan profit yang dilepas per transaksi, ditambah satu tabel untuk setiap pertanyaan dashboard (Q1-Q5), termasuk simulasi batas diskon.
+- **Gold**: tabel `kf_analysis` berisi nett sales, nett profit, dan profit yang dilepas per transaksi, ditambah satu tabel untuk setiap pertanyaan dashboard (Q1-Q5), termasuk simulasi batas diskon dan cek stok.
 
-Struktur Gold mengikuti halaman dashboard, jadi setiap angka di Power BI bisa dicocokkan dengan query sumbernya. Bagian bawah file Gold berisi query cek angka.
+Bagian bawah file Gold berisi query cek angka, jadi setiap angka di dashboard bisa dicocokkan dengan query sumbernya.
 
 ## 🛠️ Tools & Tech
 
@@ -56,13 +70,13 @@ Struktur Gold mengikuti halaman dashboard, jadi setiap angka di Power BI bisa di
 
 ## 🔍 Key Findings
 
-- **Penjualan stagnan, bukan turun:** Rp80,4 → 80,0 → 80,6 → 80,1 miliar. Rata-rata Rp6,69 miliar per bulan, dan Februari selalu paling rendah karena bulannya lebih pendek. Dihitung per hari, Februari sama dengan bulan lain.
-- **Diskon adalah kebocoran terbesar:** di semua kelompok diskon, harga barang (±Rp516 rb) dan jumlah transaksi (±44,8 rb per level) sama. Yang berubah cuma untung per transaksi: **Rp147 rb** kalau tanpa diskon, **Rp127 rb** di diskon 12-15%. Totalnya **Rp7,4 miliar** dilepas, setara 7,5% potensi profit.
+- **Penjualan stagnan, bukan turun:** Rp80,4 → 80,0 → 80,6 → 80,1 miliar. Februari selalu paling rendah karena bulannya lebih pendek. Dihitung per hari, Februari sama dengan bulan lain.
 - **Cabang terbaik menang karena ramai:** 10 cabang teratas rata-rata untung Rp62,1 jt, 40% di atas 10 terbawah (Rp44,4 jt). Transaksinya 435 vs 344, rating pembelinya sama (4,01 vs 3,99).
 - **Jawa Barat unggul karena jumlah cabang:** 510 cabang, Rp26,9 miliar profit. Dihitung per cabang, semua provinsi setara di Rp52-54 jt.
 - **Rating cabang menyesatkan:** rating cabang naik dari 4,08 ke 4,83, rating pembeli tetap **4,00**. Lima cabang berating sempurna 5,0 cuma dapat rating pembeli 3,91 sampai 3,96.
-- **Profit bertumpu pada produk mahal:** transaksi di atas Rp500 rb (51,9% volume) menyumbang **79,9% profit**. Di sisi lain, 10 produk teratas cuma 12,9% profit, jadi tidak ada produk penopang tunggal.
-- **Stok terparkir:** **7,3%** dari 258.415 pasangan cabang-produk punya stok yang tidak pernah terjual selama empat tahun, dan 1,7% mencatat penjualan tanpa stok opname.
+- **Profit bertumpu pada produk mahal:** transaksi di atas Rp500 rb (51,9% volume) menyumbang **79,9% profit**. 10 produk teratas cuma 12,9% profit, jadi tidak ada produk penopang tunggal.
+- **Diskon adalah kebocoran terbesar:** harga barang dan jumlah transaksi sama di semua level diskon. Yang berubah cuma untung per transaksi: **Rp147 rb** kalau tanpa diskon, **Rp127 rb** di diskon 12-15%. Totalnya **Rp7,4 miliar** dilepas, setara 7,5% potensi profit.
+- **Stok terparkir:** **7,3%** dari 258.415 kombinasi cabang-produk punya stok yang tidak pernah terjual selama empat tahun, dan 1,7% mencatat penjualan tanpa stok opname.
 
 ## 🧹 Persiapan Data
 
@@ -75,35 +89,37 @@ Sebelum menghitung apa pun, saya mengecek kualitas data:
 
 ## 🔬 Analisis
 
-### 1. Penjualan per tahun dan per bulan
+### 1. Penjualan dan profit 2020-2023
 
 ![Nett sales per tahun](Images/Nett%20sales%20per%20tahun.png)
 
-Nett sales berada di sekitar Rp80 miliar setiap tahun dengan perubahan di bawah 1%. Penjualan tidak turun, tapi juga tidak tumbuh.
+**Pertanyaan:** berapa penjualan dan profit 2020-2023, dan apakah naik?
+
+**Insight:** nett sales berada di sekitar Rp80 miliar setiap tahun dengan perubahan di bawah 1%. Penjualan tidak turun, tapi juga tidak tumbuh.
 
 ![Nett sales per bulan](Images/Nett%20sales%20per%20bulan%20%28Rp%20miliar%29.png)
 
-Rata-rata penjualan Rp6,69 miliar per bulan, dengan 26 bulan di atas rata-rata dan 22 bulan di bawahnya. Titik terendah selalu jatuh di bulan Februari.
+Rata-rata penjualan Rp6,69 miliar per bulan, dengan 26 bulan di atas rata-rata dan 22 bulan di bawahnya. Titik terendah selalu jatuh di bulan Februari. Tapi kalau dihitung per hari, penjualan Februari sama dengan bulan lain (sekitar Rp221 jt per hari). Turunnya cuma karena jumlah harinya lebih sedikit, bukan karena pembeli berkurang.
 
-Setelah saya hitung per hari, penjualan Februari ternyata sama dengan bulan lain (sekitar Rp221 jt per hari). Turunnya hanya karena jumlah harinya lebih sedikit, bukan karena pembeli berkurang.
-
-### 2. Kenapa provinsi tidak bisa langsung dibandingkan
-
-![Top 10 provinsi](Images/Top%2010%20provinsi%20%28total%20nett%20profit%29.png)
-
-Ranking awal menempatkan Jawa Barat jauh di atas provinsi lain. Ternyata Jawa Barat punya 510 cabang, hampir 30% dari seluruh cabang. Setelah saya bagi per cabang, semua provinsi menghasilkan Rp52 sampai 54 jt. Karena itu dashboard menampilkan total profit bersama jumlah cabangnya, supaya pembaca tidak salah mengira Jawa Barat lebih efisien.
-
-### 3. Cabang terbaik vs terburuk
+### 2. Cabang terbaik vs terburuk
 
 ![Top 10 cabang](Images/Top%2010%20cabang%20%28nett%20profit%29.png)
 
-10 cabang teratas rata-rata untung Rp62,1 jt, 40% di atas 10 terbawah (Rp44,4 jt). Bedanya ada di jumlah transaksi (435 vs 344), bukan rating pembeli (4,01 vs 3,99). Cabang terbaik lebih ramai, bukan lebih disukai.
+**Pertanyaan:** kenapa sebagian cabang untung lebih besar?
 
-### 4. Rating cabang vs rating pembeli
+**Insight:** 10 cabang teratas rata-rata untung Rp62,1 jt, 40% di atas 10 terbawah (Rp44,4 jt). Bedanya ada di jumlah transaksi (435 vs 344), bukan rating pembeli (4,01 vs 3,99). Jadi cabang terbaik itu lebih ramai, bukan lebih disukai.
+
+![Top 10 provinsi](Images/Top%2010%20provinsi%20%28total%20nett%20profit%29.png)
+
+Hal yang sama terjadi di level provinsi. Jawa Barat jauh di atas provinsi lain karena punya 510 cabang, hampir 30% dari seluruh cabang. Setelah dibagi per cabang, semua provinsi menghasilkan Rp52 sampai 54 jt. Karena itu dashboard menampilkan total profit bersama jumlah cabangnya, supaya pembaca tidak salah mengira Jawa Barat lebih efisien.
+
+### 3. Rating cabang vs rating pembeli
 
 ![Rating cabang vs rating pembeli](Images/Rating%20cabang%20vs%20rating%20pembeli.png)
 
-Saya membagi cabang ke tiga kelompok berdasarkan rating cabangnya:
+**Pertanyaan:** apakah rating cabang mencerminkan kepuasan pembeli?
+
+**Insight:** tidak. Cabang dibagi ke tiga kelompok berdasarkan rating cabangnya:
 
 | Kelompok rating cabang | Jumlah cabang | Rating cabang | Rating pembeli |
 |---|---|---|---|
@@ -111,27 +127,27 @@ Saya membagi cabang ke tiga kelompok berdasarkan rating cabangnya:
 | 4,3 sampai 4,6 | 600 | 4,46 | 4,00 |
 | 4,7 sampai 5,0 | 549 | 4,83 | 4,00 |
 
-Rating cabang naik, tapi rating dari pembeli tetap 4,00. Lima cabang berating 5,0 bahkan hanya mendapat rating pembeli 3,91 sampai 3,96.
+Rating cabang naik, tapi rating dari pembeli tetap 4,00. Lima cabang berating 5,0 bahkan cuma dapat rating pembeli 3,91 sampai 3,96.
 
 ![5 contoh cabang berating 5,0](Images/5%20contoh%20cabang%20berating%205%2C0.png)
 
-### 5. Sumber profit
+### 4. Sumber profit
 
 ![Kontribusi profit per tier harga](Images/Kontribusi%20profit%20per%20tier%20harga.png)
 
-Produk di atas Rp500 rb hanya 52% dari transaksi, tapi menyumbang 80% profit. Sebagian karena margin di tier ini paling tinggi (30%). Di sisi lain, 10 produk teratas cuma 12,9% dari total profit, jadi profit tidak bertumpu pada segelintir produk.
+**Pertanyaan:** dari mana profit datang?
+
+**Insight:** produk di atas Rp500 rb cuma 52% dari transaksi, tapi menyumbang 80% profit. Salah satu alasannya, margin di tier ini paling tinggi (30%). Di sisi lain, 10 produk teratas cuma 12,9% dari total profit, jadi profit tidak bertumpu pada segelintir produk.
 
 ![Top 10 produk](Images/Top%2010%20produk%20%28nett%20profit%29.png)
 
-### 6. Dampak diskon
+### 5. Profit yang hilang karena diskon dan stok
 
 ![Profit per transaksi tanpa diskon vs setelah diskon](Images/Profit%20per%20transaksi%20tanpa%20diskon%20vs%20setelah%20diskon.png)
 
-Ini temuan paling kuat.
+**Pertanyaan:** berapa profit yang hilang karena diskon dan stok?
 
-"Profit yang dilepas untuk diskon" adalah selisih profit kalau barang yang sama dijual tanpa diskon. Contohnya, obat seharga Rp600 rb dengan margin 30% menghasilkan untung Rp180 rb. Dengan diskon 10%, harganya jadi Rp540 rb dan untungnya Rp162 rb. Artinya Rp18 rb profit dilepas. Diskon baru sepadan kalau pembelinya bertambah cukup banyak untuk menutup potongan untung itu.
-
-Saya membagi 16 level diskon ke empat kelompok:
+**Cara baca:** profit yang dilepas = selisih untung kalau barang yang sama dijual tanpa diskon. Contohnya obat Rp600 rb dengan margin 30% untungnya Rp180 rb. Dengan diskon 10%, harganya jadi Rp540 rb dan untungnya Rp162 rb, jadi Rp18 rb profit dilepas.
 
 | | Diskon 0-3% | Diskon 4-7% | Diskon 8-11% | Diskon 12-15% |
 |---|---|---|---|---|
@@ -141,19 +157,19 @@ Saya membagi 16 level diskon ke empat kelompok:
 | Untung per transaksi setelah diskon | Rp144 rb | Rp139 rb | Rp133 rb | Rp127 rb |
 | Profit yang dilepas | Rp0,4 M | Rp1,5 M | Rp2,5 M | Rp3,1 M |
 
-Harga barang dan jumlah pembeli sama di semua kelompok. Satu-satunya yang berbeda adalah besar diskonnya, jadi turunnya untung per transaksi dari Rp147 rb ke Rp127 rb murni berasal dari diskon. Totalnya Rp7,4 miliar profit dilepas selama empat tahun, setara 7,5% dari potensi profit.
+**Insight diskon:** harga barang dan jumlah pembeli sama di semua kelompok diskon. Jadi turunnya untung per transaksi dari Rp147 rb ke Rp127 rb murni karena diskon, dan diskon besar tidak menarik pembeli tambahan. Totalnya Rp7,4 miliar profit dilepas selama empat tahun, setara 7,5% dari potensi profit.
 
-Baris transaksi tidak menghitung level 0% dan 15%, karena dua level itu hanya punya separuh transaksi akibat pembulatan data.
-
-### 7. Simulasi batas diskon
-
-Dengan asumsi jumlah transaksi tetap (dan data menunjukkan diskon memang tidak mengubah jumlah transaksi):
+Kalau diskon dibatasi dan jumlah transaksi tetap (data menunjukkan diskon memang tidak mengubah jumlah transaksi):
 
 | Skenario | Tambahan profit 2020-2023 | Per tahun |
 |---|---|---|
 | Diskon maksimal 10% | Rp0,8 M | Rp0,2 M |
 | Diskon maksimal 5% | Rp3,3 M | Rp0,8 M |
 | Tanpa diskon | Rp7,4 M | Rp1,8 M |
+
+**Insight stok:** dari 258.415 kombinasi cabang-produk di tabel inventory, 7,3% punya stok yang tidak pernah terjual selama empat tahun. Artinya ada barang yang diam di rak cabang tertentu, padahal produk yang sama laku di cabang lain. Sebaliknya, 1,7% kombinasi mencatat penjualan tanpa stok opname, jadi pencatatan stoknya perlu dirapikan.
+
+Catatan: level diskon 0% dan 15% hanya punya separuh transaksi level lain karena pembulatan data, jadi baris transaksi di tabel tidak memakai dua level itu.
 
 ## 🧪 Yang Juga Saya Cek
 
@@ -184,6 +200,9 @@ Tidak semua dugaan terbukti. Beberapa sudut ini saya cek dan hasilnya rata, jadi
 
 Tiga halaman dengan slicer Tahun, Provinsi, dan Kategori Cabang, kotak Key Insight dan Rekomendasi di setiap halaman, serta navigasi lewat sidebar.
 
+- 📄 [Dashboard versi PDF](Visualisasi/Dasboard%20Kimia%20Farma.pdf)
+- 📑 [Deck presentasi](Presentation%20deck/Presentasi%20desain%20deck%20Kimia%20Farma.pdf)
+
 ## ⚠️ Keterbatasan & Kualitas Data
 
 | Masalah | Bukti | Dampak ke analisis |
@@ -192,8 +211,14 @@ Tiga halaman dengan slicer Tahun, Provinsi, dan Kategori Cabang, kotak Key Insig
 | Pelanggan hanya dicatat dengan nama | 264.601 nama unik, satu nama muncul di 316 transaksi | Pelanggan setia tidak bisa dibedakan dari orang lain bernama sama, jadi analisis retensi tidak bisa dibuat |
 | Data kemungkinan sintetis | Rating pembeli tersebar rata dari 3,0 sampai 5,0, transaksi per cabang, harga barang, dan diskon juga terlalu seragam | Temuan perlu diuji ulang dengan data nyata |
 | Inventory tanpa tanggal | Tabel stok hanya berisi cabang, produk, dan jumlah | Angka stok tidak ikut slicer Tahun |
-| Pembulatan diskon | Diskon 0% dan 15% hanya punya separuh transaksi level lain | Perbandingan transaksi per level tidak memakai 0% dan 15% |
 | Asumsi simulasi | Simulasi diskon mengasumsikan jumlah transaksi tetap | Data mendukung asumsi ini, tapi tetap perlu diuji di lapangan |
+
+## 🚀 Langkah Selanjutnya
+
+- Uji batas diskon 5% di sebagian cabang selama satu periode, lalu bandingkan jumlah transaksi dan profitnya dengan cabang yang tidak diubah.
+- Minta data customer ID supaya pelanggan setia bisa dibedakan dan analisis retensi bisa dibuat.
+- Minta data inventory per tanggal supaya stok mati bisa dipantau per tahun dan ikut slicer dashboard.
+- Minta data lokasi, jam buka, dan jumlah staf cabang untuk mencari tahu kenapa sebagian cabang lebih ramai.
 
 ## 📁 Struktur Repo
 
@@ -203,14 +228,11 @@ SQL_Kimia-Farma-Analyst/
 ├── LICENSE
 ├── Raw Data/                  # 4 tabel sumber (2 file besar dalam .zip)
 ├── Analyst/                   # SQL Server Medallion: Bronze → Silver → Gold
-├── Images/                    # chart dari dashboard Power BI
+├── Images/                    # chart dari dashboard, diagram relasi tabel, dan diagram pipeline
 ├── Screenshots Dasboard/      # tampilan 3 halaman dashboard
 ├── Visualisasi/               # dashboard versi PDF
 └── Presentation deck/         # deck presentasi (PDF)
 ```
-
-- 📄 [Dashboard versi PDF](Visualisasi/Kimia_Farma_Dashboard.pdf)
-- 📑 [Deck presentasi](Presentation%20deck/Presentasi%20desain%20deck%20Kimia%20Farma.pdf)
 
 ## ▶️ Cara Menjalankan
 
